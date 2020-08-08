@@ -8,89 +8,97 @@ const settings = {
 };
 
 const sketch = ({ width, height }) => {
-  const gridSize = 6;
-  const margin = width * 0.1;
-  const count = 3;
-  const numberOfColors = random.rangeFloor(2, 6);
-  const palette = random
-    .shuffle(random.pick(palettes))
-    .slice(0, numberOfColors);
+  // Let's get a random palette of 1-5 colours
+  const nColors = random.rangeFloor(1, 6);
+  const palette = random.shuffle(random.pick(palettes)).slice(0, nColors);
+  const background = "white";
 
+  // Padding around edges
+  const margin = width * 0.05;
+
+  // Create a grid of points (in pixel space) within the margin bounds
   const createGrid = () => {
+    const xCount = 100;
+    const yCount = 100;
     const points = [];
-    for (let x = 0; x < gridSize; x++) {
-      for (let y = 0; y < gridSize; y++) {
-        const u = x / (gridSize - 1);
-        const v = y / (gridSize - 1);
-        points.push([u, v]);
+    for (let x = 0; x < xCount; x++) {
+      for (let y = 0; y < yCount; y++) {
+        const u = x / (xCount - 1);
+        const v = y / (yCount - 1);
+        const px = lerp(margin, width - margin, u);
+        const py = lerp(margin, height - margin, v);
+        points.push([px, py]);
       }
     }
     return points;
   };
 
-  const grid = createGrid();
+  // Create the grid
+  let grid = createGrid();
 
-  const createTrapezoids = () => {
-    function translatePosition(position) {
-      return position * (width - 2 * margin) + margin;
+  // Now create the shapes
+  let shapes = [];
+
+  // As long as we still have two grid points left
+  while (grid.length > 2) {
+    // Select two random points from the grid
+    const pointsToRemove = random.shuffle(grid).slice(0, 2);
+    // Not enough points left, just break out
+    if (pointsToRemove.length < 2) {
+      break;
     }
 
-    function createTrapezoid() {
-      const pointA = random.pick(grid);
+    // The color of this trapezoid
+    const color = random.pick(palette);
 
-      let pointB = random.pick(grid);
+    // Filter these points out of the grid
+    grid = grid.filter((p) => !pointsToRemove.includes(p));
 
-      while (pointA[1] === pointB[1] || pointA[0] === pointB[0]) {
-        pointB = random.pick(grid);
-      }
+    // Now let's form the trapezoid from points A to B
+    const [a, b] = pointsToRemove;
 
-      const pointC = [pointB[0], 1];
-      const pointD = [pointA[0], 1];
-
-      const points = [pointA, pointB, pointC, pointD];
-
-      const translatedPoints = [];
-      points.forEach((point) => {
-        translatedPoints.push([
-          translatePosition(point[0]),
-          translatePosition(point[1]),
-        ]);
-      });
-      return { positions: translatedPoints, color: random.pick(palette) };
-    }
-
-    const trapezoidArray = [];
-    for (let index = 0; index < count; index++) {
-      trapezoidArray.push(createTrapezoid());
-    }
-    return trapezoidArray;
-  };
-
-  const trapezoids = createTrapezoids();
-
-  return ({ context, width, height }) => {
-    grid.forEach(([u, v]) => {
-      const x = lerp(margin, width - margin, u);
-      const y = lerp(height - margin, margin, v);
-      context.beginPath();
-      context.arc(x, y, 10, 0, Math.PI * 2, false);
-      context.fillStyle = "black";
-      context.fill();
+    shapes.push({
+      color,
+      // The path goes from the bottom of the page,
+      // up to the first point,
+      // through the second point,
+      // and then back down to the bottom of the page
+      path: [[a[0], height - margin], a, b, [b[0], height - margin]],
+      // The average Y position of both grid points
+      // This will be used for layering
+      y: (a[1] + b[1]) / 2,
     });
+  }
 
-    trapezoids.forEach((trapezoid) => {
-      const { positions, color } = trapezoid;
+  // Sort/layer the shapes according to their average Y position
+  shapes.sort((a, b) => a.y - b.y);
+
+  // Now render
+  return ({ context, width, height }) => {
+    // Make sure our alpha is back to 1.0 before
+    // we draw our background color
+    context.globalAlpha = 1;
+    context.fillStyle = background;
+    context.fillRect(0, 0, width, height);
+
+    shapes.forEach(({ lineWidth, path, color }) => {
       context.beginPath();
-      context.moveTo(...positions[0]);
-      context.lineTo(...positions[1]);
-      context.lineTo(...positions[2]);
-      context.lineTo(...positions[3]);
+      path.forEach(([x, y]) => {
+        context.lineTo(x, y);
+      });
       context.closePath();
+
+      // Draw the trapezoid with a specific colour
+      context.lineWidth = 5;
+      context.globalAlpha = 0.85;
       context.fillStyle = color;
-      context.strokeStyle = "black";
-      context.lineWidth = 30;
-      context.stroke();
       context.fill();
+
+      // Outline at full opacity
+      context.lineJoin = context.lineCap = "round";
+      context.strokeStyle = background;
+      context.globalAlpha = 1;
+      context.stroke();
     });
   };
 };
