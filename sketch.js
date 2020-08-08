@@ -1,3 +1,18 @@
+/**
+ * An example of a Sol LeWitt inspired "Wall Drawing" using
+ * a simple generative algorithm.
+ *
+ * The instructions for this mural:
+ *
+ * - Using a 6x6 grid of evenly spaced points
+ * - Connect two random points on the grid; forming a trapezoid with two parallel sides extending down
+ * - Fill the trapezoid with a colour, then stroke with the background colour
+ * - Find another two random points and repeat; continuing until all grid points are exhausted
+ * - Layer the shapes by the average Y position of their two grid points
+ *
+ * Source: https://github.com/mattdesl/workshop-generative-art/blob/master/src/2d/07-advanced-wall-drawing.js
+ */
+
 const canvasSketch = require("canvas-sketch");
 const { lerp } = require("canvas-sketch-util/math");
 const random = require("canvas-sketch-util/random");
